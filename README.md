@@ -3,11 +3,11 @@ End-to-end Data Pipeline for TikTok Hashtag Analytics using Apache Airflow, Post
 
 
 # Table of Contents
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Features](#features)
-- [Project Structure](#project-structure)
+- [Overview](#Overview)
+- [Architecture](#Architecture)
+- [Tech Stack](#Tech-stack)
+- [Features](#Features)
+- [Project Structure](#Froject-structure)
 - [Database Schema](#database-schema)
 - [Quick Start](#quick-start)
 - [DAG Workflow](#dag-workflow)
@@ -83,6 +83,7 @@ tiktok-analytics-de/
 │   └── requirements.txt
 │
 └── logs/                         # Airflow logs (auto-generated)
+
 #SQL Schema
 
 -- Staging: Raw data from API
@@ -147,14 +148,17 @@ CREATE TABLE agg_hashtag_rank (
 clean_staging → mock_api_data → load_dim_hashtag → transform_to_fact → build_hashtag_rank
 
 👤 Author: Dat Chu Quoc 
+
 🔗 GitHub: https://github.com/cupeedrl
+
 📧 whisperkuu.41@gmail.com
+
 💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/
+
 📄 License
 MIT License - Feel free to use for learning and portfolio purposes!
 
-🎯 Key Takeaways
-This project demonstrates:
+#This project demonstrates:
 -Data Modeling: Star Schema design for analytics
 -ETL Pipeline: Airflow DAG with 5 tasks
 -SQL Skills: Complex queries, JOINs, aggregations
