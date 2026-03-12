@@ -35,7 +35,7 @@ A production-grade Data Engineering pipeline that processes social media analyti
 
 # Overview
 
-This project demonstrates a complete Data Engineering workflow for tracking and analyzing TikTok hashtag performance. It simulates a real-world analytics pipeline that:
+This project demonstrates a complete Data Engineering workflow for tracking and analyzing TikTok hashtag performance. It simulates a real-world analytics pipeline that:  
 -Extracts data from a mock TikTok API (simulating social media metrics)  
 -Transforms raw data into analytics-ready format using dimensional modeling  
 -Loads processed data into a PostgreSQL Data Warehouse  
