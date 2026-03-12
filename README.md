@@ -16,7 +16,8 @@ End-to-end Data Pipeline for TikTok Hashtag Analytics using Apache Airflow, Post
 - [Troubleshooting](#troubleshooting)
 - [Author](#author)
 
-#Overview
+# Overview
+
 This project demonstrates a complete Data Engineering workflow for tracking and analyzing TikTok hashtag performance. It simulates a real-world analytics pipeline that:
 Extracts data from a mock TikTok API (simulating social media metrics)
 Transforms raw data into analytics-ready format using dimensional modeling
@@ -28,35 +29,36 @@ Analyze engagement metrics (views, likes, shares, comments)
 Generate daily rankings and week-over-week growth
 Enable data-driven decisions for marketing campaigns
 
-#Architecture
+# Architecture
+
 <img width="1359" height="718" alt="image" src="https://github.com/user-attachments/assets/805febc9-1103-4efd-8759-f1317f3cc0b6" />
 
-#Feature
+# Feature
 Data Engineering
 -Automated daily ETL pipeline (@daily schedule)
 -Dimensional modeling (Star Schema)
 -Idempotent pipelines (safe to re-run)
 -Data quality checks built-in
 -Error handling & retry logic
-Data Warehouse
+# Data Warehouse
 -5 tables: Staging → Dimensions → Facts → Analytics
 -4,000+ pre-populated dates (2020-2030)
 -Foreign key constraints for data integrity
 -UPSERT logic for incremental loads
-Dashboard & Analytics
+# Dashboard & Analytics
 -Top hashtags by views (ranking)
 -Daily trend analysis
 -Engagement rate calculations
 -Week-over-week growth tracking
 -Interactive Metabase BI dashboard
-Infrastructure
+# Infrastructure
 -Docker Compose for easy deployment
 -Health checks for all services
 -Automatic PID file cleanup
 -Timezone fix for Windows compatibility
 Auto-create Airflow connections
 
-#Project Structure
+# Project Structure
 tiktok-analytics-de/
 ├── .env                          # Environment variables (DO NOT COMMIT)
 ├── .env.example                  # Template for .env
@@ -84,7 +86,7 @@ tiktok-analytics-de/
 │
 └── logs/                         # Airflow logs (auto-generated)
 
-#SQL Schema
+# SQL Schema
 
 -- Staging: Raw data from API
 CREATE TABLE stg_hashtag_raw (
@@ -144,21 +146,21 @@ CREATE TABLE agg_hashtag_rank (
     wow_growth DECIMAL(10,2),
     UNIQUE(report_date, hashtag)
 );
-#Dag flow
+# Dag flow
 clean_staging → mock_api_data → load_dim_hashtag → transform_to_fact → build_hashtag_rank
 
-👤 Author: Dat Chu Quoc 
+# 👤 Author: Dat Chu Quoc 
 
-🔗 GitHub: https://github.com/cupeedrl
+# 🔗 GitHub: https://github.com/cupeedrl
 
-📧 whisperkuu.41@gmail.com
+# 📧 Gmail: whisperkuu.41@gmail.com
 
-💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/
+# 💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/
 
-📄 License
+# 📄 License
 MIT License - Feel free to use for learning and portfolio purposes!
 
-#This project demonstrates:
+# This project demonstrates:
 -Data Modeling: Star Schema design for analytics
 -ETL Pipeline: Airflow DAG with 5 tasks
 -SQL Skills: Complex queries, JOINs, aggregations
