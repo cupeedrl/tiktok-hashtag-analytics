@@ -3,12 +3,12 @@ End-to-end Data Pipeline for TikTok Hashtag Analytics using Apache Airflow, Post
 
 ## 📋 Executive Summary
 A production-grade Data Engineering pipeline that processes social media analytics data from extraction through visualization. Built to demonstrate industry-standard practices in ETL orchestration, data warehousing, and business intelligence.  
-    -Data Volume: 20-40 records/day per hashtag  
-    -Pipeline Tasks: 5 orchestrated tasks with retry logic  
+    -Pipeline Tasks: 6 orchestrated tasks with retry logic  
+    -Data Quality Checks: 5 validation rules  
     -Data Tables: 5 tables (Star Schema)  
-    -Date Range: 4,018 days (2020-2030)  
-    -Uptime: 99.9% (Docker health checks)  
     -Schedule: Daily automated execution (@daily)  
+    -Backfill Support: Safe for historical data processing  
+    -Date Range: 4,018 days (2020-2030)  
 ## 🎯 Business Problem
 - Marketing teams need real-time visibility into hashtag performance to:  
     -Identify trending topics before competitors  
@@ -18,8 +18,8 @@ A production-grade Data Engineering pipeline that processes social media analyti
 - This pipeline solves that by providing:  
     -Automated daily data collection  
     -Clean, analytics-ready data warehouse  
-    -Interactive dashboards for stakeholder consumption  
-
+    -Interactive dashboards for stakeholder consumption
+    -Data quality enforcement at every stage  
 ## Infrastructure Components
 
 | Component         | Technology           | Purpose                                                  |
@@ -41,7 +41,7 @@ This project demonstrates a complete Data Engineering workflow for tracking and 
 -Loads processed data into a PostgreSQL Data Warehouse  
 -Visualizes insights through an interactive Metabase BI Dashboard  
 
-Business Value: 
+Business Value:  
 -Track trending hashtags in real-time  
 -Analyze engagement metrics (views, likes, shares, comments)  
 -Generate daily rankings and week-over-week growth  
@@ -61,13 +61,14 @@ Business Value:
 ## Key Features
 ### Data Engineering Best Practices
 
-| Feature           | Implementation                                 | Business Value                                      |
-|-------------------|------------------------------------------------|-----------------------------------------------------|
-| Idempotency       | UPSERT logic, date-based deduplication          | Safe re-runs without data duplication               |
-| Data Quality      | Foreign key constraints, NOT NULL checks        | Ensures data integrity at ingestion                 |
-| Error Handling    | 2 retries with exponential backoff              | Pipeline resilience against transient failures      |
-| Incremental Load  | Date-partitioned processing                     | Efficient resource utilization                      |
-| Monitoring        | Health checks, Airflow UI alerts                | Proactive issue detection                           |
+| Feature           | Implementation                                      | Business Value                                     |
+|-------------------|-----------------------------------------------------|----------------------------------------------------|
+| Idempotency       | UPSERT logic, date-based deduplication              | Safe re-runs without data duplication              |
+| Data Quality      | 5 validation checks (NULL, negative values, min records) | Ensures data integrity at ingestion            |
+| Error Handling    | 2 retries with 30s delay, 10min timeout             | Pipeline resilience against transient failures     |
+| Incremental Load  | Date-partitioned processing with `{{ ds }}`         | Efficient resource utilization                     |
+| Monitoring        | Health checks, comprehensive logging                | Proactive issue detection                          |
+| Backfill Support  | Uses `execution_date` not `datetime.now()`          | Safe historical data processing                    |
 ## Data Modeling
 
 Dimensional Modeling (Star Schema)
@@ -89,9 +90,17 @@ Dimensional Modeling (Star Schema)
 | fact_hashtag_daily  | Fact       | Grain: hashtag × day                 | ~6 rows/day      |
 | agg_hashtag_rank    | Analytics  | Pre-computed rankings                | ~6 rows/day      |
 
-## Dag flow
-clean_staging → mock_api_data → load_dim_hashtag → transform_to_fact → build_hashtag_rank
 
+## Dag flow
+clean_staging → mock_api_data → check_data_quality → load_dim_hashtag → transform_to_fact → build_hashtag_rank
+| Task ID            | Type             | Description                                   |
+|--------------------|------------------|-----------------------------------------------|
+| clean_staging      | PostgresOperator | Delete old data for execution date            |
+| mock_api_data      | PythonOperator   | Extract data from mock API (bulk insert)      |
+| check_data_quality | PythonOperator   | Validate data (5 checks)                      |
+| load_dim_hashtag   | PostgresOperator | Load unique hashtags to dimension             |
+| transform_to_fact  | PostgresOperator | Aggregate staging → fact table                |
+| build_hashtag_rank | PostgresOperator | Calculate daily rankings                      |
 ## Quick Start
 ### Required Software
 Docker Desktop 4.0+     # https://docker.com  
@@ -125,10 +134,17 @@ docker-compose ps
 | airflow-scheduler  | Up (healthy)  | -                       |
 | metabase           | Up (healthy)  | 0.0.0.0:3000->3000/tcp  |
 
-### Create schema and seed reference data
+### Initialize Database  
+```cmd
+# Create schema and seed reference data
 Get-Content db.sql | docker-compose exec -T postgres_dw psql -U postgres -d tiktok_dw
+```
 
-### Access Points: Airflow U, Metabase,PostgreSQL
+### Access Points
+-Airflow (Pipeline monitoring): http://localhost:8080
+-Metabase (Business dashboards): http://localhost:3000
+-PostgreSQL (Direct SQL access): localhost: 5433
+
 ### Execute Pipeline
 -Navigate to Airflow UI (http://localhost:8080)  
 -Enable tiktok_etl_dag toggle  
@@ -187,58 +203,61 @@ LEFT JOIN previous_week p ON c.hashtag = p.hashtag
 ORDER BY growth_percent DESC NULLS LAST;  
 ```
 ## 🔧 Technical Highlights  
-1. Timezone Compatibility (Windows + Docker)  
--Problem: PostgreSQL rejected Asia/Saigon timezone from Windows JDBC drivers.  
--Solution: Symbolic link in container startup:  
-command:  
-```cmd
-mklink /D "C:\usr\share\zoneinfo\Asia\Saigon" "C:\usr\share\zoneinfo\Ho_Chi_Minh"
 
-docker-entrypoint.sh postgres
-```   
-- Result: 100% connection success rate across all clients (DBeaver, Python, Metabase).  
-
-2. Idempotent Pipeline Design  
--Problem: Re-running DAGs created duplicate records.  
--Solution: UPSERT pattern with ON CONFLICT:  
+1. Problem: Using datetime.now() breaks backfill operations.  
+Solution: Use Airflow's {{ ds }} template variable:  
 ```sql
-INSERT INTO fact_hashtag_daily (...)
-SELECT ...
-ON CONFLICT (date_id, hashtag_id)
-DO UPDATE SET total_views = EXCLUDED.total_views;  
+WHERE report_date = '{{ ds }}'  -- Uses execution_date, not current date
 ```
--Result: Safe to re-run any task without data corruption.  
-
-3. Automatic Connection Management  
--Problem: Airflow connections lost after container restart.  
--Solution: Auto-create connection in webserver startup:  
--command:  
-```cmd
-airflow connections add "postgres_dw" ... 2>nul || echo Connection already exists
-
-airflow webserver
-```   
--Result: Zero manual setup after initial deployment.  
-
-4. Stale PID File Prevention
-Problem: Airflow failed to start after unexpected shutdowns.  
--Solution: Auto-cleanup in startup command:  
--command: >
-```cmd
-del /F /Q C:\opt\airflow\airflow-webserver.pid && airflow webserver
-```   
--Result: 99.9% successful container restarts.     
-
-## Metrics & Performance
-
-| Metric              | Value           | Notes                             |
-|---------------------|-----------------|-----------------------------------|
-| Pipeline Duration   | ~45 seconds     | End-to-end execution time          |
-| Data Latency        | < 1 minute      | From extraction to dashboard       |
-| Container Startup   | 60-90 seconds   | Cold start to healthy status       |
-| Query Performance   | < 100ms         | Pre-aggregated rankings            |
-| Storage Efficiency  | ~500MB          | Full dataset + indexes             |
-
+Result: Safe to backfill historical data without processing wrong dates.  
+2. Bulk Insert for Performance  
+Problem: Row-by-row insert is slow for large datasets.  
+Solution: Use hook.insert_rows() with list of tuples:  
+```sql
+hook.insert_rows(
+    table='stg_hashtag_raw',
+    rows=records,  # List of tuples
+    target_fields=[...],
+    commit=True
+)
+```
+3. Data Quality Enforcement    
+Problem: Bad data propagates through pipeline.  
+Solution: 5 validation checks before transformation:  
+```python
+checks = {
+    "null_hashtag": "SELECT COUNT(*) ... WHERE hashtag IS NULL",
+    "null_views": "SELECT COUNT(*) ... WHERE views IS NULL",
+    "negative_views": "SELECT COUNT(*) ... WHERE views < 0",
+    "negative_engagement": "SELECT COUNT(*) ... WHERE engagement_rate < 0",
+    "min_records": "SELECT COUNT(*) ... WHERE report_date = %s",
+}
+```
+4. Star Schema Compliance  
+Problem: Direct date insert violates foreign key constraints.  
+Solution: INNER JOIN with dim_date:  
+```sql
+INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
+```
+5. Modular Code Architecture  
+Problem: Monolithic DAGs are hard to maintain and test.  
+Solution: Separate modules for extractors, validators, SQL, config:  
+Result: Pipeline fails fast on bad data, preventing corruption.  
+    dags/    
+    ├── extractors/tiktok_api_extractor.py  
+    ├── validators/data_quality_validator.py  
+    ├── sql/*.sql  
+    └── config/settings.py  
+   
+## Skills Demonstrated
+- Data Orchestration: Apache Airflow, DAG design, Task dependencies  
+- Data Warehousing: PostgreSQL, Star Schema, Dimensional modeling  
+- ETL Development: Python, SQL, Bulk insert, UPSERT, Idempotency  
+- Data Quality: Validation checks, NULL detection, Error handling  
+- Containerization: Docker, Docker Compose, Health checks
+- BI & Visualization: Metabase, SQL queries, Dashboard design  
+- Code Quality: Modular architecture, Type hints, Documentation  
+- Problem Solving: Timezone fix, PID cleanup, Backfill support
 ## Production Recommendations
 
 1. Generate secure Fernet Key
